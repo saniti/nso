@@ -1,0 +1,414 @@
+module migration {
+  namespace "http://example.com/interface-migration";
+  prefix interface-migration;
+
+  import ietf-inet-types {
+    prefix inet;
+  }
+  import tailf-common {
+    prefix tailf;
+  }
+  import tailf-ncs {
+    prefix ncs;
+  }
+  import ietf-yang-types {
+    prefix types;
+  }
+
+  description
+    "NSO Interface Migration Service - manages migration of interfaces 
+     from source to target devices with state tracking";
+
+  revision 2024-01-01 {
+    description
+      "Initial revision for interface migration service";
+  }
+
+  // Define interface types
+  typedef interface-type {
+    type enumeration {
+      enum "Bundle" {
+        description "Bundle interface (e.g., Bundle-Ether, Port-channel)";
+      }
+      enum "Physical" {
+        description "Physical interface (e.g., GigabitEthernet, TenGigE)";
+      }
+    }
+    description "Interface type classification";
+  }
+
+  // Define interface states
+  typedef interface-state {
+    type enumeration {
+      enum "a" {
+        description "State A - Planning";
+      }
+      enum "b" {
+        description "State B - Configured";
+      }
+      enum "c" {
+        description "State C - Testing";
+      }
+      enum "d" {
+        description "State D - Active";
+      }
+      enum "e" {
+        description "State E - Decommissioned";
+      }
+    }
+    description "Interface state options";
+  }
+
+  list interface-migration {
+    description "Interface migration batch configuration";
+    
+    key "batchID";
+    
+    uses ncs:service-data;
+    ncs:servicepoint interface-migration-servicepoint;
+
+    leaf batchID {
+      tailf:info "Unique batch identifier for migration group";
+      type string {
+        pattern "[A-Za-z0-9_-]+";
+        length "1..64";
+      }
+      description "Unique identifier for the migration batch";
+    }
+	
+      leaf mig-status {
+        tailf:info "Status of Migration";
+        type enumeration {
+          enum "planned" {
+            description "Direct cutover migration";
+          }
+          enum "approved" {
+            description "Parallel running migration";
+          }
+          enum "pre-migration" {
+            description "Phased migration approach";
+          }
+          enum "pre-flight" {
+            description "Phased migration approach";
+          }	
+          enum "in-progress" {
+            description "Phased migration approach";
+          }
+          enum "migrated" {
+            description "Phased migration approach";
+          }		  		  
+          enum "monitoring" {
+            description "Phased migration approach";
+          }
+          enum "failed" {
+            description "Phased migration approach";
+          }	
+          enum "rolled-back" {
+            description "Phased migration approach";
+          }			  
+        }
+        default "planned";
+      }	
+
+    // Source Interface Configuration
+    container source {
+      tailf:info "Source interface configuration";
+      description "Configuration for the source interface being migrated from";
+      
+      leaf device {
+        tailf:info "Source device name";
+        type leafref {
+          path "/ncs:devices/ncs:device/ncs:name";
+        }
+        mandatory true;
+        description "Source device containing the interface to migrate";
+      }
+
+      leaf interface-type {
+        tailf:info "Source interface type (Bundle or Physical)";
+        type interface-type;
+        mandatory true;
+        description "Type of source interface";
+      }
+
+      leaf interface-name {
+        tailf:info "Source interface name (e.g., GigabitEthernet0/0/1, Bundle-Ether1)";
+        type string;
+        mandatory true;
+        description "Name/identifier of the source interface";
+      }
+
+      leaf interface-description {
+        tailf:info "Source interface description";
+        type string {
+          length "0..255";
+        }
+        description "Description of the source interface";
+      }
+
+      leaf-list interface-state {
+        tailf:info "Source interface state (select from a, b, c, d, e)";
+        type interface-state;
+        min-elements 1;
+        description "Current state(s) of the source interface";
+      }
+
+      // Additional source interface details
+      leaf ip-address {
+        tailf:info "Source interface IP address";
+        type inet:ipv4-address;
+        description "IP address configured on source interface";
+      }
+
+      leaf subnet-mask {
+        tailf:info "Source interface subnet mask";
+        type inet:ipv4-address;
+        description "Subnet mask for source interface";
+      }
+    }
+
+    // Target Interface Configuration  
+    container target {
+      tailf:info "Target interface configuration";
+      description "Configuration for the target interface being migrated to";
+      
+      leaf device {
+        tailf:info "Target device name";
+        type leafref {
+          path "/ncs:devices/ncs:device/ncs:name";
+        }
+        mandatory true;
+        description "Target device for interface migration";
+      }
+
+      leaf interface-type {
+        tailf:info "Target interface type (Bundle or Physical)";
+        type interface-type;
+        mandatory true;
+        description "Type of target interface";
+      }
+
+      leaf interface-name {
+        tailf:info "Target interface name (e.g., GigabitEthernet0/0/2, Bundle-Ether2)";
+        type string;
+        mandatory true;
+        description "Name/identifier of the target interface";
+      }
+
+      leaf interface-description {
+        tailf:info "Target interface description";
+        type string {
+          length "0..255";
+        }
+        description "Description of the target interface";
+      }
+
+      leaf-list interface-state {
+        tailf:info "Target interface state (select from a, b, c, d, e)";
+        type interface-state;
+        min-elements 1;
+        description "Desired state(s) of the target interface";
+      }
+
+      // Additional target interface details
+      leaf ip-address {
+        tailf:info "Target interface IP address";
+        type inet:ipv4-address;
+        description "IP address to configure on target interface";
+      }
+
+      leaf subnet-mask {
+        tailf:info "Target interface subnet mask";
+        type inet:ipv4-address;
+        description "Subnet mask for target interface";
+      }
+    }
+
+    // Migration Metadata
+    container migration-info {
+      tailf:info "Migration process information";
+      description "Additional information about the migration process";
+      
+      leaf migration-type {
+        tailf:info "Type of migration being performed";
+        type enumeration {
+          enum "cutover" {
+            description "Direct cutover migration";
+          }
+          enum "parallel" {
+            description "Parallel running migration";
+          }
+          enum "phased" {
+            description "Phased migration approach";
+          }
+        }
+        default "cutover";
+      }
+
+      leaf priority {
+        tailf:info "Migration priority level";
+        type enumeration {
+          enum "low" {
+            description "Low priority migration";
+          }
+          enum "medium" {
+            description "Medium priority migration";
+          }
+          enum "high" {
+            description "High priority migration";
+          }
+          enum "critical" {
+            description "Critical priority migration";
+          }
+        }
+        default "medium";
+      }
+
+      leaf scheduled-date {
+        tailf:info "Scheduled migration date (YYYY-MM-DD)";
+        type types:date-and-time;
+        description "Planned date for migration execution";
+      }
+
+      leaf maintenance-window {
+        tailf:info "Maintenance window for migration";
+        type string;
+        description "Maintenance window details";
+      }
+
+      leaf created-by {
+        tailf:info "User who created this migration batch";
+        type string;
+        description "Username of the person who created this migration";
+      }
+
+      leaf notes {
+        tailf:info "Additional notes about the migration";
+        type string {
+          length "0..1000";
+        }
+        description "Free-form notes about the migration";
+      }
+    }
+
+    // Validation and constraints
+    must "source/device != target/device or source/interface-name != target/interface-name" {
+      error-message "Source and target must be different (different device or different interface)";
+    }
+
+    // Operational data
+    container status {
+      //config true;
+      tailf:info "Migration status information";
+      description "Operational status of the migration";
+      
+      leaf current-status {
+        type enumeration {
+          enum "planned" {
+            description "Migration is planned but not started";
+          }
+          enum "in-progress" {
+            description "Migration is currently in progress";
+          }
+          enum "completed" {
+            description "Migration completed successfully";
+          }
+          enum "failed" {
+            description "Migration failed";
+          }
+          enum "rolled-back" {
+            description "Migration was rolled back";
+          }
+        }
+        description "Current status of the migration";
+      }
+
+      leaf last-updated {
+        type string;
+        description "Timestamp of last status update";
+      }
+
+      leaf completion-percentage {
+        type uint8 {
+          range "0..100";
+        }
+        units "percent";
+        description "Migration completion percentage";
+      }
+    }
+  }
+
+  // RPC operations for migration management
+  rpc execute-migration {
+    tailf:info "Execute interface migration for specified batch";
+    input {
+      leaf batchID {
+        type leafref {
+          path "/interface-migration:interface-migration/interface-migration:batchID";
+        }
+        mandatory true;
+        description "Batch ID to execute migration for";
+      }
+      
+      leaf dry-run {
+        type boolean;
+        default false;
+        description "Perform dry-run without actual changes";
+      }
+    }
+    
+    output {
+      leaf result {
+        type enumeration {
+          enum "success" {
+            description "Migration executed successfully";
+          }
+          enum "failure" {
+            description "Migration execution failed";
+          }
+          enum "partial" {
+            description "Migration partially completed";
+          }
+        }
+        description "Execution result";
+      }
+      
+      leaf message {
+        type string;
+        description "Detailed result message";
+      }
+    }
+  }
+
+  rpc rollback-migration {
+    tailf:info "Rollback interface migration for specified batch";
+    input {
+      leaf batchID {
+        type leafref {
+          path "/interface-migration:interface-migration/interface-migration:batchID";
+        }
+        mandatory true;
+        description "Batch ID to rollback migration for";
+      }
+    }
+    
+    output {
+      leaf result {
+        type enumeration {
+          enum "success" {
+            description "Rollback completed successfully";
+          }
+          enum "failure" {
+            description "Rollback failed";
+          }
+        }
+        description "Rollback result";
+      }
+      
+      leaf message {
+        type string;
+        description "Detailed rollback message";
+      }
+    }
+  }
+}
